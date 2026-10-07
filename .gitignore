@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+dist/
+build/
+
+# 从真实工作区生成的预览可能含项目内部知识，只在本机验证，不入库。
+examples/current-workspace-preview/
+examples/registry.yaml
+
