@@ -81,6 +81,45 @@ def _resolve_root(args: argparse.Namespace) -> Path:
     return resolve_workspace(registry=registry_path(args.registry))
 
 
+def _mcp_setup(
+    *,
+    host: str,
+    legacy_workspace: str,
+    command: str,
+) -> dict[str, Any]:
+    root = str(Path(legacy_workspace).expanduser().resolve())
+    args = ["--legacy-workspace", root]
+    if host == "codex":
+        content = "\n".join(
+            [
+                "[mcp_servers.wsctl]",
+                f'command = "{command}"',
+                'args = ["--legacy-workspace", "' + root + '"]',
+                'default_tools_approval_mode = "approve"',
+            ]
+        )
+    else:
+        content = json.dumps(
+            {
+                "mcpServers": {
+                    "wsctl": {
+                        "command": command,
+                        "args": args,
+                    }
+                }
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    return {
+        "host": host,
+        "transport": "stdio",
+        "command": command,
+        "args": args,
+        "content": content,
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="wsctl",
@@ -179,6 +218,17 @@ def build_parser() -> argparse.ArgumentParser:
     legacy_preview.add_argument("--skip-knowledge", action="store_true")
     legacy_preview.add_argument("--skip-evidence", action="store_true")
 
+    setup = subparsers.add_parser("setup", help="输出宿主 MCP 配置片段")
+    setup_sub = setup.add_subparsers(dest="setup_command", required=True)
+    setup_mcp = setup_sub.add_parser("mcp", help="生成 MCP stdio 配置")
+    setup_mcp.add_argument(
+        "--host",
+        choices=("codex", "claude", "cursor", "generic"),
+        default="codex",
+    )
+    setup_mcp.add_argument("--legacy-workspace", required=True)
+    setup_mcp.add_argument("--command", dest="mcp_command", default="wsctl-mcp")
+
     return parser
 
 
@@ -206,6 +256,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 project_id=args.project,
                 include_knowledge=not args.skip_knowledge,
                 include_evidence=not args.skip_evidence,
+            )
+        elif args.command == "setup":
+            result = _mcp_setup(
+                host=args.host,
+                legacy_workspace=args.legacy_workspace,
+                command=args.mcp_command,
             )
         else:
             root = _resolve_root(args)
@@ -279,7 +335,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 result = search(root, args.query, limit=args.limit)
             else:
                 parser.error(f"unsupported command: {args.command}")
-        _dump(result, args.json)
+        if args.command == "setup":
+            if args.json:
+                print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+            else:
+                print(result["content"])
+        else:
+            _dump(result, args.json)
         if isinstance(result, dict) and result.get("ok") is False:
             return 1
         return 0
@@ -290,4 +352,3 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

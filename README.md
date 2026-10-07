@@ -93,6 +93,21 @@ Codex/Claude 等 MCP 客户端的配置值示例：
 }
 ```
 
+也可以直接生成宿主配置片段：
+
+```bash
+wsctl setup mcp --host codex \
+  --legacy-workspace /path/to/buildroot-workspace-framework
+```
+
+该命令只输出配置，不修改用户配置。Codex 片段包含：
+
+```toml
+default_tools_approval_mode = "approve"
+```
+
+这只适用于当前只暴露只读/计划工具的 legacy-only MCP server。以后如果同时暴露写入或执行工具，应按工具单独设置审批模式。
+
 ## 当前边界
 
 包含：
