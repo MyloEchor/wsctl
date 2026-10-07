@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from wsctl.adapters import legacy_workspace as legacy
 from wsctl.core.errors import ValidationError, WriteDeniedError
 from wsctl.services.context import build_context
 from wsctl.services.entities import (
@@ -55,6 +56,7 @@ def build_server(
     *,
     default_workspace: str | None = None,
     registry: Path | None = None,
+    legacy_workspace: Path | None = None,
 ) -> Any:
     try:
         from mcp.server.fastmcp import FastMCP
@@ -313,6 +315,125 @@ def build_server(
             uri=uri,
         )
 
+    if legacy_workspace is not None:
+        legacy_root = legacy_workspace.expanduser().resolve()
+
+        @server.tool()
+        def legacy_doctor() -> dict[str, Any]:
+            """检查当前 Buildroot 工作区元数据；只读。"""
+            return legacy.legacy_doctor(legacy_root)
+
+        @server.tool()
+        def legacy_project_list() -> dict[str, Any]:
+            """列出当前 Buildroot 工作区的项目；只读。"""
+            return legacy.legacy_project_list(legacy_root)
+
+        @server.tool()
+        def legacy_project_context(project: str, task: str) -> dict[str, Any]:
+            """生成当前 Buildroot 项目的 Agent 上下文；只读。"""
+            return legacy.legacy_project_context(
+                legacy_root,
+                project=project,
+                task=task,
+            )
+
+        @server.tool()
+        def legacy_source_status() -> dict[str, Any]:
+            """核对 west.yml 与磁盘源码身份；只读。"""
+            return legacy.legacy_source_status(legacy_root)
+
+        @server.tool()
+        def legacy_branch_status() -> dict[str, Any]:
+            """查看长期开发线状态；只读。"""
+            return legacy.legacy_branch_status(legacy_root)
+
+        @server.tool()
+        def legacy_worktree_status(
+            project: str,
+            component: str | None = None,
+        ) -> dict[str, Any]:
+            """查看项目工作树状态；只读。"""
+            return legacy.legacy_worktree_status(
+                legacy_root,
+                project=project,
+                component=component,
+            )
+
+        @server.tool()
+        def legacy_history(project: str, limit: int = 10) -> dict[str, Any]:
+            """查看项目历史来源；只读。"""
+            return legacy.legacy_history(
+                legacy_root,
+                project=project,
+                limit=limit,
+            )
+
+        @server.tool()
+        def legacy_knowledge_list(status: str | None = None) -> dict[str, Any]:
+            """列出当前工作区知识；只读。"""
+            return legacy.legacy_knowledge_list(legacy_root, status=status)
+
+        @server.tool()
+        def legacy_knowledge_verify() -> dict[str, Any]:
+            """验证知识元信息和状态；只读。"""
+            return legacy.legacy_knowledge_verify(legacy_root)
+
+        @server.tool()
+        def legacy_agent_status() -> dict[str, Any]:
+            """检查当前机器上的 Agent 工具链；只读。"""
+            return legacy.legacy_agent_status(legacy_root)
+
+        @server.tool()
+        def legacy_build_plan(
+            project: str,
+            profile: str,
+            stage: str = "configure",
+        ) -> dict[str, Any]:
+            """生成 Buildroot 构建计划；不执行构建。"""
+            return legacy.legacy_build_plan(
+                legacy_root,
+                project=project,
+                profile=profile,
+                stage=stage,
+            )
+
+        @server.tool()
+        def legacy_test_plan(
+            project: str,
+            profile: str,
+            tiers: str = "T0",
+        ) -> dict[str, Any]:
+            """生成测试计划；不执行测试。"""
+            return legacy.legacy_test_plan(
+                legacy_root,
+                project=project,
+                profile=profile,
+                tiers=tiers,
+            )
+
+        @server.tool()
+        def legacy_deploy_plan(
+            project: str,
+            profile: str,
+            slot: str = "a",
+            board_device: str | None = None,
+            bom: str | None = None,
+        ) -> dict[str, Any]:
+            """生成烧写计划；不执行烧写，但会只读探测板卡运行槽。"""
+            return legacy.legacy_deploy_plan(
+                legacy_root,
+                project=project,
+                profile=profile,
+                slot=slot,
+                board_device=board_device,
+                bom=bom,
+            )
+
+        @server.tool()
+        def legacy_release_show(release_id: str) -> dict[str, Any]:
+            """读取交付记录；只读。"""
+            return legacy.legacy_release_show(legacy_root, release_id=release_id)
+
     return server
 
 
@@ -320,11 +441,20 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="wsctl-mcp")
     parser.add_argument("--registry", help="多工作区注册表路径")
     parser.add_argument("--workspace", help="默认工作区 id 或路径")
+    parser.add_argument(
+        "--legacy-workspace",
+        help="增加当前 Buildroot 工作区的只读 MCP 适配器",
+    )
     parser.add_argument("--list-tools", action="store_true")
     args = parser.parse_args(argv)
     server = build_server(
         default_workspace=args.workspace,
         registry=Path(args.registry).expanduser().resolve() if args.registry else None,
+        legacy_workspace=(
+            Path(args.legacy_workspace).expanduser().resolve()
+            if args.legacy_workspace
+            else None
+        ),
     )
     if args.list_tools:
         tools = asyncio.run(server.list_tools())
@@ -345,4 +475,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

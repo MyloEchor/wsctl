@@ -52,6 +52,47 @@ wsctl-mcp --workspace /path/to/preview-workspace
 wsctl workspace add /path/to/project --allow-write
 ```
 
+### 接入当前 Buildroot 工作区
+
+外部原型可以给现有 Buildroot 工作区增加一组只读/计划型 MCP 工具：
+
+```bash
+wsctl-mcp \
+  --legacy-workspace /path/to/buildroot-workspace-framework \
+  --list-tools
+```
+
+这些工具通过当前仓库已有的 `wsctl` 源码读取真实事实，不修改当前仓库：
+
+- `legacy_doctor`
+- `legacy_project_list`
+- `legacy_project_context`
+- `legacy_source_status`
+- `legacy_branch_status`
+- `legacy_worktree_status`
+- `legacy_history`
+- `legacy_knowledge_list`
+- `legacy_knowledge_verify`
+- `legacy_agent_status`
+- `legacy_build_plan`
+- `legacy_test_plan`
+- `legacy_deploy_plan`
+- `legacy_release_show`
+
+构建、测试、部署只生成计划，不执行。`legacy_deploy_plan` 会只读探测板卡运行槽。
+
+Codex/Claude 等 MCP 客户端的配置值示例：
+
+```json
+{
+  "command": "/home/cj/Tech/wsctl/.venv/bin/wsctl-mcp",
+  "args": [
+    "--legacy-workspace",
+    "/home/cj/buildroot-workspace-framework"
+  ]
+}
+```
+
 ## 当前边界
 
 包含：
@@ -69,4 +110,3 @@ wsctl workspace add /path/to/project --allow-write
 - 远程 HTTP 服务；
 - 多用户权限系统；
 - 自动 Git commit。
-
