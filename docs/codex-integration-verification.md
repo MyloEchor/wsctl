@@ -42,6 +42,16 @@ codex \
 - 调用状态为 `completed`；
 - 最终回答为 `3 个项目`。
 
+随后又用同一个临时配置让 Codex 连续调用两个 MCP 工具：
+
+- `legacy_project_context(project="echolife-rk3576", task="确认 MCP 参与项目管理")`
+- `legacy_source_status()`
+
+两个调用都返回 `completed`，最终回答读出：
+
+- context 知识数量：12；
+- source summary error 数量：0。
+
 ## 审批模式
 
 Codex 的 MCP 配置支持：
@@ -60,4 +70,3 @@ default_tools_approval_mode = "approve"
 
 当前 legacy adapter 只暴露只读/计划工具，所以 `approve` 适用于当前专用 server。
 如果同一个 server 以后同时暴露写入或执行工具，应按工具单独设置审批模式。
-
